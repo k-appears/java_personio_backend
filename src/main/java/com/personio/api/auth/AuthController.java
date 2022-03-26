@@ -48,7 +48,10 @@ public class AuthController {
         String token = req.queryParams(Constants.URL_PARAM_TOKEN);
         if (token == null) {
             String authHeader = req.headers("Authorization");
-            throw new RequestErrorException(HttpStatus.FORBIDDEN_403, "Invalid/expired authentication");
+            token = authHeader.contains("Bearer ") ? authHeader.substring(authHeader.indexOf(" ") + 1) : null;
+            if (token == null) {
+                throw new RequestErrorException(HttpStatus.FORBIDDEN_403, "Invalid/expired authentication");
+            }
         }
         String username;
         try {

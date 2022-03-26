@@ -38,12 +38,41 @@ What we (mainly) look at when checking out the solution:
 3. Is your code ready for production (stable, secure, scalable)?
 ```
 
-
 # How to run it:
 
 1. `docker build -t personio/challenge .`
 2. `docker run -d -p 4567:4567  personio/challenge`
 3. Check application is running `curl localhost:4567`
+
+# How to test it
+
+1. Open http client as postman or curl
+2. Do a post to obtain a JWT Token as: ```
+   curl --location --request POST 'http://localhost:4567/login' \
+   --header 'Content-Type: application/json' \
+   --data-raw '{
+   "username": "test",
+   "password": "test"
+   }'```
+3. To create a *hierarchy* use the endpoint `hierarchy/create` with the JWT TOKEN from previous result as:
+    1. A query parameter,
+       example: ```curl --location --request POST 'http://localhost:4567/hierarchy/create?token${TOKEN}' \
+       --header 'Content-Type: application/json' \
+       --data-raw '{
+       "B": "C"
+       }'```
+    2. Or as a header like `Authentication Bearer: ${TOKEN}`,
+       example: ```curl --location --request POST 'http://localhost:4567/hierarchy/create' \
+       --header 'Content-Type: application/json' \
+       --header 'Authorization: Bearer ${TOKEN}' \
+       --data-raw '{
+       "B": "C"
+       }'```
+4. To query the supervisor of a supervisor use the endpoint `hierarchy/get_sup?name=NAME` with the JWT TOKEN (either as
+   query parameter or header) where `NAME` is the name already inserted,
+   example ```curl --location --request GET 'http://localhost:4567/hierarchy/get_sup?name=B' \
+   --header 'Content-Type: application/json' \
+   --header 'Authorization: Bearer ${TOKEN}'```
 
 # Security
 
@@ -61,20 +90,21 @@ What we (mainly) look at when checking out the solution:
 * __Medium__: Load testing like [Locust](https://locust.io)
 * __Low__: Token in headers instead of query parameter to avoid max length in url
 
-
 # Technology decision
 
 * __JWT__ vs __base64__:
   `JWT` and `base64` ensure that the data remain intact without modification during transport.
-  * Pros: 
-    * Encoding in `base64` doesn't add encryption, it means `base64` is easier to find out the original message
-    * `JWT` allows [Claims](https://en.wikipedia.org/wiki/Claims-based_identity) to add identity
-  * Cons:
-    * `JWT` Tokens cannot be revoked, if the token gets leaked, an attacker can misuse it until the token expiry
-    * `JWT` adds an extra layer of complexity
+    * Pros:
+        * Encoding in `base64` doesn't add encryption, it means `base64` is easier to find out the original message
+        * `JWT` allows [Claims](https://en.wikipedia.org/wiki/Claims-based_identity) to add identity
+    * Cons:
+        * `JWT` Tokens cannot be revoked, if the token gets leaked, an attacker can misuse it until the token expiry
+        * `JWT` adds an extra layer of complexity
 
 # Questions
-- [ ] __JWT TOKEN in headers__
+
+- [X] __Instructions on how to use endpoints__
+- [X] __JWT TOKEN in headers__
 - [ ] __Persistence ORM (1 vs 2 hierarchies, A->B, B->C)__
 - [ ] __Error handling (trailing coma)__
 - [ ] __Status code for responses__

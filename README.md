@@ -54,15 +54,14 @@ What we (mainly) look at when checking out the solution:
    "username": "test",
    "password": "test"
    }'```
-3. To create a *hierarchy* use the endpoint `hierarchy/create` with the JWT TOKEN from previous result as:
-    1. A query parameter,
-       example: ```curl --location --request POST 'http://localhost:4567/hierarchy/create?token${TOKEN}' \
+3. To create a *hierarchy* use the endpoint `hierarchy` with the JWT TOKEN from previous result as:
+    1. A query parameter, example: ```curl --location --request POST 'http://localhost:4567/hierarchy?token${TOKEN}' \
        --header 'Content-Type: application/json' \
        --data-raw '{
        "B": "C"
        }'```
     2. Or as a header like `Authentication Bearer: ${TOKEN}`,
-       example: ```curl --location --request POST 'http://localhost:4567/hierarchy/create' \
+       example: ```curl --location --request POST 'http://localhost:4567/hierarchy' \
        --header 'Content-Type: application/json' \
        --header 'Authorization: Bearer ${TOKEN}' \
        --data-raw '{
@@ -70,7 +69,7 @@ What we (mainly) look at when checking out the solution:
        }'```
 4. To query the supervisor of a supervisor use the endpoint `hierarchy/get_sup?name=NAME` with the JWT TOKEN (either as
    query parameter or header) where `NAME` is the name already inserted,
-   example ```curl --location --request GET 'http://localhost:4567/hierarchy/get_sup?name=B' \
+   example ```curl --location --request GET 'http://localhost:4567/hierarchy/sup-sup?name=B' \
    --header 'Content-Type: application/json' \
    --header 'Authorization: Bearer ${TOKEN}'```
 
@@ -88,14 +87,13 @@ What we (mainly) look at when checking out the solution:
   like [Amazon RDS](https://aws.amazon.com/rds/postgresql/)
 * __High__: Instead of using static functions use dependency injection like [Guice](https://github.com/google/guice)
 * __Medium__: Load testing like [Locust](https://locust.io)
-* __Low__: Token in headers instead of query parameter to avoid max length in url
 
 # Technology decision
 
-* __JWT__ vs __base64__:
+* encryption __JWT__ vs encoding __base64__:
   `JWT` and `base64` ensure that the data remain intact without modification during transport.
     * Pros:
-        * Encoding in `base64` doesn't add encryption, it means `base64` is easier to find out the original message
+        * Encoding in `base64` doesn't add encryption, with `base64` is easier to find out the original message
         * `JWT` allows [Claims](https://en.wikipedia.org/wiki/Claims-based_identity) to add identity
     * Cons:
         * `JWT` Tokens cannot be revoked, if the token gets leaked, an attacker can misuse it until the token expiry
@@ -105,9 +103,10 @@ What we (mainly) look at when checking out the solution:
 
 - [X] __Instructions on how to use endpoints__
 - [X] __JWT TOKEN in headers__
-- [ ] __Persistence ORM (1 vs 2 hierarchies, A->B, B->C)__
-- [ ] __Error handling (trailing coma)__
-- [ ] __Status code for responses__
-- [ ] __Restfull API__
-- [ ] __Pyramid of testing__
-- [ ] __Factory pattern vs adapted__
+- [X] __Truncate columns of DB when new hierarchy is created__
+- [X] __Invalid Json parsing handling (trailing coma)__
+- [X] __Content type for exceptions__
+- [X] __Restfull API naming convention__
+- [X] __Pyramid of testing__
+- [ ] __Encapsulate logic of service to use another interface, example CLI__
+- [X] __More info if cycle found__

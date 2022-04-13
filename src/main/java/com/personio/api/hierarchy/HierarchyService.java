@@ -1,10 +1,12 @@
 package com.personio.api.hierarchy;
 
 import com.j256.ormlite.dao.Dao;
+import com.j256.ormlite.table.TableUtils;
 import com.personio.api.hierarchy.model.Employee;
 import com.personio.api.hierarchy.model.Hierarchy;
 import com.personio.api.utils.RequestErrorException;
 import com.personio.api.utils.RequestUtil;
+import com.personio.api.utils.ResponseSupervisor;
 import org.eclipse.jetty.http.HttpStatus;
 
 import java.sql.SQLException;
@@ -12,13 +14,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.personio.api.Application.connectionSource;
+
 public class HierarchyService {
     private static final String RELATIONSHIP_NOT_FOUND = "Relationship not found";
-    private static final String CYCLE_FOUND = "Cycle found";
+    private static final String CYCLE_FOUND = "Cycle found, employee %s in already processed %s";
     private static final String NOT_FOUND = "Not found ";
     private static final String NOT_FOUND_PARENT_OF = "Not found parent of ";
-    private static final String NOT_FOUND_SUPERVISOR_OF = "Not found supervisor of ";
-    private static final String NOT_FOUND_PARENT_SUPERVISOR_OF = "Found supervisor %s but not found parent supervisor";
+    private static final String NOT_FOUND_SUPERVISOR_OF = "Not found supervisor of '%s'";
+    private static final String NOT_FOUND_PARENT_SUPERVISOR_OF = "Supervisor of '%s' is '%s' but not found supervisor of '%s'";
     private final Dao<Hierarchy, String> hierarchyDao;
     private final Dao<Employee, String> employeeDao;
 
@@ -28,7 +32,7 @@ public class HierarchyService {
         this.employeeDao = employeeDao;
     }
 
-    public Set<String> getSupervisorAndSupervisorByName(String name) {
+    public ResponseSupervisor getSupervisorAndSupervisorByName(String name) {
         try {
             Hierarchy hierarchyFirst = hierarchyDao.queryForId(name);
             if (hierarchyFirst == null) {
@@ -40,13 +44,13 @@ public class HierarchyService {
             String supervisor = hierarchyFirst.getParent().getName();
             Hierarchy hierarchyParent = hierarchyDao.queryForId(supervisor);
             if (hierarchyParent == null) {
-                throw new RequestErrorException(HttpStatus.NOT_FOUND_404, NOT_FOUND_SUPERVISOR_OF + supervisor);
+                throw new RequestErrorException(HttpStatus.NOT_FOUND_404, String.format(NOT_FOUND_SUPERVISOR_OF, supervisor));
             }
             if (hierarchyParent.getParent() == null) {
                 throw new RequestErrorException(HttpStatus.NOT_FOUND_404,
-                        String.format(NOT_FOUND_PARENT_SUPERVISOR_OF, supervisor));
+                        String.format(NOT_FOUND_PARENT_SUPERVISOR_OF, name, supervisor, supervisor));
             }
-            return Set.of(supervisor, hierarchyParent.getParent().getName());
+            return new ResponseSupervisor(supervisor, hierarchyParent.getParent().getName());
         } catch (SQLException e) {
             throw new RequestErrorException(HttpStatus.INTERNAL_SERVER_ERROR_500, e.getMessage());
         }
@@ -65,6 +69,8 @@ public class HierarchyService {
         Hierarchy hierarchy = createHierarchy(mergedPaths, head);
 
         try {
+            TableUtils.clearTable(connectionSource, Hierarchy.class);
+            TableUtils.clearTable(connectionSource, Employee.class);
             persist(hierarchy);
         } catch (SQLException e) {
             throw new RequestErrorException(HttpStatus.INTERNAL_SERVER_ERROR_500, e.getMessage());
@@ -74,13 +80,14 @@ public class HierarchyService {
 
 
     private void persist(Hierarchy hierarchy) throws SQLException {
-        hierarchyDao.createIfNotExists(hierarchy);
-        for (Employee employee : hierarchy.getEmployees()) {
-            employeeDao.create(employee);
-            if (employee.getHierarchy() != null) {
-                persist(employee.getHierarchy());
-            }
+        if (hierarchy == null) {
+            return;
         }
+        for (Employee employee : hierarchy.getEmployees()) {
+            persist(employee.getHierarchy());
+            employeeDao.createIfNotExists(employee);
+        }
+        hierarchyDao.createIfNotExists(hierarchy);
     }
 
     String findHeadOfSupervisors(Map<String, Set<String>> mergedPaths) {
@@ -117,7 +124,7 @@ public class HierarchyService {
         while (!queue.isEmpty()) {
             String supervisor = queue.remove();
             if (localProcessed.contains(supervisor)) {
-                throw new RequestErrorException(HttpStatus.BAD_REQUEST_400, CYCLE_FOUND);
+                throw new RequestErrorException(HttpStatus.BAD_REQUEST_400, String.format(CYCLE_FOUND, supervisor, localProcessed));
             }
             localProcessed.add(supervisor);
             if (mergedPaths.containsKey(supervisor)) {

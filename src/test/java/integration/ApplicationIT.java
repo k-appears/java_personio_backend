@@ -2,13 +2,8 @@ package integration;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import com.personio.api.auth.AuthController;
 import com.personio.api.hierarchy.HierarchyController;
-import com.personio.api.utils.Constants;
-import com.personio.api.utils.JsonUtil;
-import com.personio.api.utils.RequestErrorException;
-import com.personio.api.utils.ResponseError;
+import com.personio.api.utils.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,8 +12,8 @@ import org.slf4j.LoggerFactory;
 import spark.Service;
 
 import java.sql.SQLException;
-import java.util.Set;
 
+import static com.personio.api.utils.JsonUtil.json;
 import static com.personio.api.utils.JsonUtil.toJson;
 import static integration.Util.performGet;
 import static integration.Util.performPost;
@@ -41,8 +36,8 @@ class ApplicationIT {
     @BeforeEach
     void setup() {
         http.init();
-        http.get("/hierarchy/get_sup", HierarchyController.getSupervisorAndSupervisorByEmployee);
-        http.post("/hierarchy/create", Constants.STANDARD_RESPONSE_CONTENTTYPE, HierarchyController.save);
+        http.get("/hierarchy/supervisor-supervisor", HierarchyController.getSupervisorAndSupervisorByEmployee, json());
+        http.post("/hierarchy", Constants.STANDARD_RESPONSE_CONTENTTYPE, HierarchyController.save);
 
         http.exception(RequestErrorException.class, (e, req, res) -> {
             res.status(e.getStatusCode());
@@ -53,23 +48,20 @@ class ApplicationIT {
     }
 
     @AfterEach
-    void shutdown() throws SQLException {
-//        ConnectionSource connectionSource = new JdbcConnectionSource(Constants.JDBC_H2_MEM);
-//        TableUtils.clearTable(connectionSource, Hierarchy.class);
-//        TableUtils.clearTable(connectionSource, Employee.class);
+    void shutdown() {
         log.info("Stopping Spark");
         http.stop();
     }
 
     @Test
     void save_no_name() {
-        String result = performPost("/hierarchy/create", "");
+        String result = performPost("/hierarchy", "");
         assertTrue(result.contains("Empty body"));
     }
 
     @Test
     void save_nameNick() {
-        String resultPost = performPost("/hierarchy/create", body);
+        String resultPost = performPost("/hierarchy", body);
         JsonObject jsonObject = new Gson().fromJson(resultPost, JsonObject.class);
         assertTrue(jsonObject.has("Jonas"));
         assertEquals(1, jsonObject.size());
@@ -84,16 +76,15 @@ class ApplicationIT {
 
     @Test
     void getSupervisorAndSupervisorByEmployee() {
-        performPost("/hierarchy/create", body);
+        performPost("/hierarchy", body);
         String resultGet = performGet("?name=Nick");
-        Set<String> result = JsonUtil.fromStringToObject(resultGet, new TypeToken<Set<String>>() {
-        }.getType());
-        assertEquals(result, Set.of("Sophie", "Jonas"));
+        ResponseSupervisor result = JsonUtil.fromStringToObject(resultGet, ResponseSupervisor.class);
+        assertEquals(result, new ResponseSupervisor("Sophie", "Jonas"));
     }
 
     @Test
     void getSupAndSup_noSup() {
-        performPost("/hierarchy/create", body);
+        performPost("/hierarchy", body);
         String resultGet = performGet("?name=Jonas");
         ResponseError responseError = JsonUtil.fromStringToObject(resultGet, ResponseError.class);
         assertEquals("Not found parent of Jonas", responseError.getMessage());
@@ -101,7 +92,7 @@ class ApplicationIT {
 
     @Test
     void get_NotFoundName() {
-        performPost("/hierarchy/create", body);
+        performPost("/hierarchy", body);
         String resultGet = performGet("?name=AnythingNotInBody");
         ResponseError responseError = JsonUtil.fromStringToObject(resultGet, ResponseError.class);
         assertEquals("Not found AnythingNotInBody", responseError.getMessage());
@@ -110,9 +101,9 @@ class ApplicationIT {
     @Test
     void main_nameNick_loop() {
         String bodyLoop = "{\"Milky\": \"Way\", \"Way\": \"Solar\", \"Solar\": \"Milky\"}";
-        String postResult = performPost("/hierarchy/create", bodyLoop);
+        String postResult = performPost("/hierarchy", bodyLoop);
         ResponseError responseError = JsonUtil.fromStringToObject(postResult, ResponseError.class);
-        assertEquals("Cycle found", responseError.getMessage());
+        assertEquals("Cycle found, employee Milky in already processed [Milky, Solar, Way]", responseError.getMessage());
     }
 
 }

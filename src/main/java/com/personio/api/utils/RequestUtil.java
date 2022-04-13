@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class RequestUtil {
-    private static final String INVALID_BODY = "Invalid body %s, reason: %s";
+    private static final String INVALID_BODY = "Invalid JSON body %s, use a validator as https://jsonlint.com/ to check for errors";
     private static final String EMPTY_BODY = "Empty body";
     private static final String EMPTY_SUPERVISOR = "Empty supervisor";
 
@@ -28,7 +28,7 @@ public class RequestUtil {
             }.getType();
             input = JsonUtil.fromStringToObject(requestBody, listType);
         } catch (JsonSyntaxException e) {
-            throw new RequestErrorException(HttpStatus.BAD_REQUEST_400, String.format(INVALID_BODY, requestBody, e.getMessage()));
+            throw new RequestErrorException(HttpStatus.BAD_REQUEST_400, String.format(INVALID_BODY, requestBody));
         }
         if (input.isEmpty()) {
             throw new RequestErrorException(HttpStatus.BAD_REQUEST_400, EMPTY_BODY);

@@ -11,13 +11,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class Util {
 
     private static final HttpClient client = HttpClient.newBuilder().build();
-    private static final String HIERARCHY_GET = "hierarchy/get_sup";
     private static final String HTTP_LOCALHOST_4567 = "http://localhost:4567";
 
     static String performGet(String parameters) {
         HttpRequest request = HttpRequest.newBuilder()
                 .GET()
-                .uri(URI.create("http://localhost:4567/" + HIERARCHY_GET + parameters))
+                .uri(URI.create("http://localhost:4567/hierarchy/supervisor-supervisor" + parameters))
                 .build();
         HttpResponse<String> response = null;
         try {

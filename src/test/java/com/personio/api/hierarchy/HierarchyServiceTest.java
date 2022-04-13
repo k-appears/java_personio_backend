@@ -65,7 +65,7 @@ class HierarchyServiceTest {
                 "          \"Sophie\": \"OtherRoot\" \n" +
                 "}";
         RequestErrorException aThrows = assertThrows(RequestErrorException.class, () -> hierarchyService.save(body));
-        assertTrue(aThrows.getMessage().contains("duplicate key: Sophie"));
+        assertTrue(aThrows.getMessage().contains("Invalid JSON body"));
     }
 
     @Test
